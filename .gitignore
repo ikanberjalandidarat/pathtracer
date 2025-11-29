@@ -1,0 +1,51 @@
+# --- Build Directories ---
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+CMakeScripts/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# --- Ray Tracer Outputs ---
+# *.ppm
+# *.png
+# *.jpg
+# output_*.ppm
+# output_*.png
+
+# *.log
+# perf_log.txt
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.code-workspace
+
+# --- System Files ---
+.DS_Store
+Thumbs.db
+
+# --- HIP / CUDA Intermediate ---
+*.hipfb
+*.hipinfo
+*.fatbin
+*.ptx
+*.cu.cpp
+*.linkinfo
+
+# --- Temporary Files ---
+*.tmp
+*.cache
+*.swp
+*.swo
