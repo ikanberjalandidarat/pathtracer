@@ -1031,6 +1031,7 @@ CMakeFiles/pathtracer_cpu.dir/src/cpu/main_cpu.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__random/student_t_distribution.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__random/weibull_distribution.h \
   /Users/lianfei/apma_final/pathtracer/src/core/sphere.h \
+  /Users/lianfei/apma_final/pathtracer/src/core/rect.h \
   /Users/lianfei/apma_final/pathtracer/src/core/material.h \
   /Users/lianfei/apma_final/pathtracer/src/core/camera.h \
   /Users/lianfei/apma_final/pathtracer/src/core/color.h \

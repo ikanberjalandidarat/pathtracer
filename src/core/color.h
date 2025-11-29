@@ -1,16 +1,17 @@
 #pragma once
 #include "vec3.h"
 #include <iostream>
+#include <algorithm>
 
-inline void write_color(std::ostream &out, const vec3& pixel_color, int samples_per_pixel) {
+inline void write_color(std::ostream &out, const vec3& pixel_color) {
     double r = pixel_color.x();
     double g = pixel_color.y();
     double b = pixel_color.z();
 
-    double scale = 1.0 / samples_per_pixel;
-    r = std::sqrt(scale * r);
-    g = std::sqrt(scale * g);
-    b = std::sqrt(scale * b);
+    // Gamma 2.0
+    r = std::sqrt(r);
+    g = std::sqrt(g);
+    b = std::sqrt(b);
 
     int ir = static_cast<int>(256 * std::clamp(r, 0.0, 0.999));
     int ig = static_cast<int>(256 * std::clamp(g, 0.0, 0.999));

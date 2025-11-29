@@ -33,11 +33,11 @@ int main(int argc, char** argv) {
     auto final_img = normalize_buffer(state);
     for (int j = H-1; j >= 0; --j) {
         for (int i = 0; i < W; ++i) {
-            write_color(out, final_img[j*W + i],
-                        state.iterations * state.cfg.spp_per_iteration);
+            write_color(out, final_img[j*W + i]);
         }
     }
 
     std::cout << "Wrote output_cpu.ppm\n";
+
     return 0;
 }

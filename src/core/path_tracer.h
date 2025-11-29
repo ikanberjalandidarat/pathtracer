@@ -3,47 +3,53 @@
 #include "camera.h"
 #include "color.h"
 #include "metrics.h"
+#include "material.h"
 
-inline vec3 ray_color(const ray& r, const Scene& scene, int depth) {
-    if (depth <= 0)
+// Estimate direct lighting from the area light using one-sample NEE
+inline vec3 sample_direct_light(const Scene& scene,
+                                const hit_record& rec,
+                                const Material& mat)
+{
+    const AreaLight& L = scene.light;
+    const Material& lm = scene.materials[L.material_id];
+
+    // Sample a point on the light
+    double r1 = random_double();
+    double r2 = random_double();
+    vec3 p_light = L.p0 + r1 * L.u + r2 * L.v;
+
+    vec3 to_light = p_light - rec.p;
+    double dist2 = to_light.length_squared();
+    double dist = std::sqrt(dist2);
+    vec3 wi = to_light / dist;
+
+    double cos_theta = std::max(0.0, dot(rec.normal, wi));
+    double cos_theta_light = std::max(0.0, -dot(L.normal, wi));
+    if (cos_theta <= 0.0 || cos_theta_light <= 0.0)
         return vec3(0,0,0);
 
-    hit_record rec;
-    if (!scene.world.hit(r, 1e-3, 1e9, rec))
-        return vec3(0,0,0); // background black
+    // Shadow ray
+    ray shadow_ray(rec.p + 1e-3 * rec.normal, wi);
+    hit_record shadow_rec;
+    if (!scene.world.hit(shadow_ray, 1e-3, dist - 1e-3, shadow_rec))
+        return vec3(0,0,0);
 
-    const Material& mat = scene.materials[rec.material_id];
+    if (shadow_rec.material_id != L.material_id)
+        return vec3(0,0,0);
 
-    // Simple emissive term for light material
-    vec3 emitted(0,0,0);
-    if (rec.material_id == 3) { // light id
-        emitted = mat.albedo;   // high albedo acts as emission
-        return emitted;
-    }
+    double pdf = dist2 / (L.area * cos_theta_light);
+    if (pdf <= 0.0) return vec3(0,0,0);
 
-    ray scattered;
-    vec3 attenuation;
-    if (!scatter(mat, r, rec, attenuation, scattered))
-        return emitted;
-
-    return emitted + attenuation * ray_color(scattered, scene, depth - 1);
+    vec3 f = mat.albedo / PI_MAT;  // Lambertian BRDF
+    return f * lm.emission * (cos_theta / pdf);
 }
 
 struct PathTracerConfig {
     int image_width = 400;
     int image_height = 400;
     int max_depth = 10;
-    int spp_per_iteration = 1; // rays/px per iteration
+    int spp_per_iteration = 1;
 };
-
-// struct PathTracerState {
-//     Scene scene;
-//     camera cam;
-//     PathTracerConfig cfg;
-//     std::vector<vec3> accum_buffer;  // accumulated radiance
-//     int iterations = 0;
-// };
-
 
 struct PathTracerState {
     Scene scene;
@@ -64,67 +70,66 @@ struct PathTracerState {
     }
 };
 
-
-// inline PathTracerState make_default_state() {
-//     PathTracerState s;
-
-//     s.scene = make_cornell_scene();
-
-//     double aspect = 1.0;
-//     vec3 lookfrom(0, 1, 5);
-//     vec3 lookat(0, 0.5, 0);
-//     vec3 vup(0, 1, 0);
-
-//     s.cfg.image_width = 400;
-//     s.cfg.image_height = 400;
-//     s.cfg.max_depth = 10;
-//     s.cfg.spp_per_iteration = 1;
-
-//     // Explicitly build camera
-//     s.cam = camera(
-//         lookfrom,
-//         lookat,
-//         vup,
-//         40.0,
-//         aspect
-//     );
-
-//     s.accum_buffer.resize(
-//         s.cfg.image_width * s.cfg.image_height,
-//         vec3(0,0,0)
-//     );
-
-//     s.iterations = 0;
-
-//     return s;
-// }
-
 inline PathTracerState make_default_state() {
     Scene scene = make_cornell_scene();
-
-    double aspect = 1.0;
-    vec3 lookfrom(0, 1, 5);
-    vec3 lookat(0, 0.5, 0);
-    vec3 vup(0, 1, 0);
 
     PathTracerConfig cfg;
     cfg.image_width = 400;
     cfg.image_height = 400;
-    cfg.max_depth = 10;
-    cfg.spp_per_iteration = 1;
+    cfg.max_depth = 20;
+    cfg.spp_per_iteration = 4;
 
-    camera cam(
-        lookfrom,
-        lookat,
-        vup,
-        40.0,
-        aspect
-    );
+    double aspect = static_cast<double>(cfg.image_width) / cfg.image_height;
+
+    // Classic Cornell camera
+    vec3 lookfrom(278, 278, -800);
+    vec3 lookat(278, 278, 0);
+    vec3 vup(0, 1, 0);
+    double vfov = 40.0;
+
+    camera cam(lookfrom, lookat, vup, vfov, aspect);
 
     return PathTracerState(scene, cam, cfg);
 }
 
+// Recursive path tracer with NEE + RR + cosine sampling
+inline vec3 ray_color(const ray& r, const Scene& scene, int depth) {
+    if (depth <= 0)
+        return vec3(0,0,0);
 
+    hit_record rec;
+    if (!scene.world.hit(r, 1e-3, 1e9, rec))
+        return vec3(0,0,0);
+
+    const Material& mat = scene.materials[rec.material_id];
+    vec3 emitted = mat.emission;
+
+    // If hit light directly, just return emission (no further bounces)
+    if (is_emissive(mat))
+        return emitted;
+
+    // Direct lighting from the area light
+    vec3 direct = sample_direct_light(scene, rec, mat);
+
+    // Russian roulette
+    double rr_prob = 0.9;
+    if (depth < 3) rr_prob = 1.0;
+
+    if (random_double() > rr_prob)
+        return emitted + direct;
+
+    // Cosine-weighted diffuse bounce
+    vec3 new_dir = sample_diffuse_direction(rec.normal);
+    ray scattered(rec.p + 1e-3 * rec.normal, new_dir);
+
+    vec3 indirect = ray_color(scattered, scene, depth - 1);
+    vec3 f = mat.albedo / PI_MAT;
+
+    // Path throughput update; divide by rr_prob for unbiasedness
+    vec3 bounce = f * indirect * (1.0 / rr_prob);
+
+    return emitted + direct + bounce;
+}
 
 inline void path_tracer_iteration(PathTracerState& state) {
     int W = state.cfg.image_width;
