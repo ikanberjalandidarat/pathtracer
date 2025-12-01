@@ -1,3 +1,0 @@
-/Users/lianfei/apma_final/pathtracer/build/CMakeFiles/pathtracer_cpu.dir
-/Users/lianfei/apma_final/pathtracer/build/CMakeFiles/edit_cache.dir
-/Users/lianfei/apma_final/pathtracer/build/CMakeFiles/rebuild_cache.dir
